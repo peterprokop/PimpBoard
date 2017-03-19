@@ -1,0 +1,3 @@
+graft PimpBoard/templates
+graft PimpBoard/static
+include PimpBoard/schema.sql

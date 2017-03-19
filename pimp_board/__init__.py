@@ -1,0 +1,1 @@
+from .pimp_board import app
