@@ -9,6 +9,7 @@ setup(
         'psycopg2',
         'Flask-SQLAlchemy',
         'Flask-Migrate',
-        'flask-login==0.2.7'
+        'flask-login==0.2.7',
+        'bcrypt'
     ],
 )

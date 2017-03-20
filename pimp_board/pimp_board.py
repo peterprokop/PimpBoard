@@ -1,14 +1,10 @@
-import os
-import sqlite3
 from flask import Flask, request, session, g, redirect, url_for, abort, \
      render_template, flash
 
 from flask_sqlalchemy import SQLAlchemy
-#from flask_login import LoginManager, logout_user
 from datetime import datetime
 
-
-from flask.ext.login import LoginManager, login_user , logout_user , current_user , login_required
+from flask_login import LoginManager, current_user, login_required
 
 app = Flask(__name__)
 app.config.from_object(__name__) # load config from this file , pimp_board.py
@@ -22,13 +18,15 @@ login_manager.login_view = 'login'
 # Load default config and override config from an environment variable
 app.config.update(dict(
     SECRET_KEY='development key',
-    USERNAME='admin',
-    PASSWORD='default',
     SQLALCHEMY_DATABASE_URI='postgresql://pimp:changeme@localhost/pimp_board'
 ))
 app.config.from_envvar('PIMP_BOARD_SETTINGS', silent=True)
 
 db = SQLAlchemy(app)
+
+@login_manager.user_loader
+def load_user(id):
+    return User.query.get(int(id))
 
 @app.before_request
 def before_request():
@@ -74,50 +72,6 @@ def add_entry():
 
     return redirect(url_for('index'))
 
-# New login
-
-@app.route('/register' , methods=['GET','POST'])
-def register():
-    if request.method == 'GET':
-        return render_template('register.html')
-    user = User(
-        email=request.form['email'], 
-        password=request.form['password'], 
-        first_name=request.form['first_name'], 
-        last_name=request.form['last_name']
-    )
-
-        #request.form['username'], request.form['password'], request.form['email'])
-    db.session.add(user)
-    db.session.commit()
-    flash('User successfully registered')
-    return redirect(url_for('login'))
- 
-
-@app.route('/login',methods=['GET','POST'])
-def login():
-    if request.method == 'GET':
-        return render_template('login.html')
-    email = request.form['email']
-    password = request.form['password']
-    registered_user = User.query.filter_by(email=email, password=password).first()
-    if registered_user is None:
-        flash('Username or Password is invalid' , 'error')
-        return redirect(url_for('login'))
-    login_user(registered_user)
-    flash('Logged in successfully')
-    return redirect(request.args.get('next') or url_for('index'))
-
-@app.route('/logout')
-def logout():
-    logout_user()
-    flash('Successfull logout')
-    return redirect(url_for('index'))
-
-@login_manager.user_loader
-def load_user(id):
-    return User.query.get(int(id))
-
 class Entry(db.Model):
     __tablename__ = 'entries'
 
@@ -136,7 +90,7 @@ class User(db.Model):
     __tablename__ = "users"
     id = db.Column('user_id',db.Integer , primary_key=True)
     email = db.Column('email',db.String(50), unique=True , index=True)
-    password = db.Column('password' , db.String(15))
+    password = db.Column('password' , db.Binary(60))
     first_name = db.Column('first_name', db.String(15))
     last_name = db.Column('last_name', db.String(15))
     registered_on = db.Column('registered_on' , db.DateTime)
@@ -163,3 +117,5 @@ class User(db.Model):
     def __repr__(self):
         return '<User %r>' % (self.username)
 
+from auth import auth_blueprint
+app.register_blueprint(auth_blueprint)

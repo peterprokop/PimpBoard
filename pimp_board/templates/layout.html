@@ -5,10 +5,10 @@
   <h1>Pimp Board</h1>
   <div class=metanav>
   {% if not g.user.is_authenticated() %}
-    <a href="{{ url_for('login') }}">log in</a>
-    <a href="{{ url_for('register') }}">register</a>
+    <a href="{{ url_for('auth_blueprint.login') }}">log in</a>
+    <a href="{{ url_for('auth_blueprint.register') }}">register</a>
   {% else %}
-    <a href="{{ url_for('logout') }}">log out</a>
+    <a href="{{ url_for('auth_blueprint.logout') }}">log out</a>
   {% endif %}
   </div>
   {% for message in get_flashed_messages() %}
