@@ -6,5 +6,8 @@ setup(
     include_package_data=True,
     install_requires=[
         'flask',
+        'psycopg2',
+        'Flask-SQLAlchemy',
+        'Flask-Migrate'
     ],
 )
