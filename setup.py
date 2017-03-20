@@ -8,6 +8,7 @@ setup(
         'flask',
         'psycopg2',
         'Flask-SQLAlchemy',
-        'Flask-Migrate'
+        'Flask-Migrate',
+        'flask-login==0.2.7'
     ],
 )

@@ -4,10 +4,20 @@ from flask import Flask, request, session, g, redirect, url_for, abort, \
      render_template, flash
 
 from flask_sqlalchemy import SQLAlchemy
+#from flask_login import LoginManager, logout_user
+from datetime import datetime
+
+
+from flask.ext.login import LoginManager, login_user , logout_user , current_user , login_required
 
 app = Flask(__name__)
 app.config.from_object(__name__) # load config from this file , pimp_board.py
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+
+
+login_manager = LoginManager()
+login_manager.init_app(app)
+login_manager.login_view = 'login'
 
 # Load default config and override config from an environment variable
 app.config.update(dict(
@@ -19,6 +29,10 @@ app.config.update(dict(
 app.config.from_envvar('PIMP_BOARD_SETTINGS', silent=True)
 
 db = SQLAlchemy(app)
+
+@app.before_request
+def before_request():
+    g.user = current_user
 
 @app.teardown_appcontext
 def close_db(error):
@@ -37,7 +51,7 @@ def initdb_command():
     print('Initialized the database.')
 
 @app.route('/')
-def show_entries():
+def index():
     entries = db.session.query(Entry).order_by(Entry.id)
     return render_template('show_entries.html', entries=entries)
 
@@ -58,27 +72,51 @@ def add_entry():
     else:
         flash('New entry was successfully posted')
 
-    return redirect(url_for('show_entries'))
+    return redirect(url_for('index'))
 
-@app.route('/login', methods=['GET', 'POST'])
+# New login
+
+@app.route('/register' , methods=['GET','POST'])
+def register():
+    if request.method == 'GET':
+        return render_template('register.html')
+    user = User(
+        email=request.form['email'], 
+        password=request.form['password'], 
+        first_name=request.form['first_name'], 
+        last_name=request.form['last_name']
+    )
+
+        #request.form['username'], request.form['password'], request.form['email'])
+    db.session.add(user)
+    db.session.commit()
+    flash('User successfully registered')
+    return redirect(url_for('login'))
+ 
+
+@app.route('/login',methods=['GET','POST'])
 def login():
-    error = None
-    if request.method == 'POST':
-        if request.form['username'] != app.config['USERNAME']:
-            error = 'Invalid username'
-        elif request.form['password'] != app.config['PASSWORD']:
-            error = 'Invalid password'
-        else:
-            session['logged_in'] = True
-            flash('You were logged in')
-            return redirect(url_for('show_entries'))
-    return render_template('login.html', error=error)
+    if request.method == 'GET':
+        return render_template('login.html')
+    email = request.form['email']
+    password = request.form['password']
+    registered_user = User.query.filter_by(email=email, password=password).first()
+    if registered_user is None:
+        flash('Username or Password is invalid' , 'error')
+        return redirect(url_for('login'))
+    login_user(registered_user)
+    flash('Logged in successfully')
+    return redirect(request.args.get('next') or url_for('index'))
 
 @app.route('/logout')
 def logout():
-    session.pop('logged_in', None)
-    flash('You were logged out')
-    return redirect(url_for('show_entries'))
+    logout_user()
+    flash('Successfull logout')
+    return redirect(url_for('index'))
+
+@login_manager.user_loader
+def load_user(id):
+    return User.query.get(int(id))
 
 class Entry(db.Model):
     __tablename__ = 'entries'
@@ -93,4 +131,35 @@ class Entry(db.Model):
 
     def __repr__(self):
         return '<id {}>'.format(self.id)
+
+class User(db.Model):
+    __tablename__ = "users"
+    id = db.Column('user_id',db.Integer , primary_key=True)
+    email = db.Column('email',db.String(50), unique=True , index=True)
+    password = db.Column('password' , db.String(15))
+    first_name = db.Column('first_name', db.String(15))
+    last_name = db.Column('last_name', db.String(15))
+    registered_on = db.Column('registered_on' , db.DateTime)
+ 
+    def __init__(self, email, password, first_name, last_name):        
+        self.email = email
+        self.password = password
+        self.first_name = first_name
+        self.last_name = last_name
+        self.registered_on = datetime.utcnow()
+
+    def is_authenticated(self):
+        return True
+ 
+    def is_active(self):
+        return True
+ 
+    def is_anonymous(self):
+        return False
+ 
+    def get_id(self):
+        return unicode(self.id)
+ 
+    def __repr__(self):
+        return '<User %r>' % (self.username)
 
